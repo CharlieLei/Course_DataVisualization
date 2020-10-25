@@ -75,9 +75,13 @@ function getLeaves(root) {
 function squarify(sizes, x, y, dx, dy) {
     let nodeList = sizes.slice(0) // 深拷贝
     // 节点的value归一化
+    let sum = 0
+    nodeList.forEach((node, i) => {
+        sum += node.data.value
+    })
     let totalArea = dx * dy
     nodeList.forEach((node, i) => {
-        node.data.value /= totalArea
+        node.data.value = node.data.value * totalArea / sum
     })
     // 逆序排序
     nodeList.sort((node1, node2) => {
@@ -137,9 +141,11 @@ function layoutRow(nodeList, x, y, dx, dy) {
 
     nodeList.forEach((node, i) => {
         node.x0 = x
-        node.y0 = y + node.data.value / width
+        node.y0 = y
         node.dx = width
         node.dy = node.data.value / width
+
+        y += node.data.value / width
     })
 
     return nodeList
@@ -153,10 +159,12 @@ function layoutCol(nodeList, x, y, dx, dy) {
     let height = coveredArea / dx                  // 左右填满的情况下的高度
 
     nodeList.forEach((node, i) => {
-        node.x0 = x + node.data.value / height
+        node.x0 = x
         node.y0 = y
         node.dx = node.data.value / height
         node.dy = height
+
+        x += node.data.value / height
     })
 
     return nodeList
