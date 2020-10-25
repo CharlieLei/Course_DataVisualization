@@ -17,7 +17,7 @@ function getSumOfNodeValue(nodeList) {
     let n = nodeList.length
     let sum = 0
     for (let i = 0; i < n; i++) {
-        sum += getValueFromData(nodeList[i])
+        sum += nodeList[i].data.value
     }
     return sum
 }
@@ -27,12 +27,14 @@ function treeify(data) {
     let currNode, nodeQueue = [root]
 
     // BFS
-    while ( currNode = nodeQueue.pop() ) {
+    while (currNode = nodeQueue.pop()) {
         let childList = getChildrenFromData(currNode.data)
-        if ( childList ) {
+        if (childList) {
             childList = Array.from(childList)
             let n = childList.length
+            let sum = 0
             for (let i = 0; i < n; i++) {
+                sum += getValueFromData(childList[i])
                 childList[i] = new TreeNode(childList[i])
                 let currChild = childList[i]
                 nodeQueue.push(currChild)
@@ -40,7 +42,7 @@ function treeify(data) {
                 currChild.depth = currNode.depth + 1
             }
             currNode.children = childList;
-            currNode.value = getSumOfNodeValue(childList)
+            currNode.value = sum
         }
     }
 
@@ -50,8 +52,8 @@ function treeify(data) {
 function getLeaves(root) {
     let leaves = []
     let currNode, nodeQueue = [root]
-    while ( currNode = nodeQueue.pop() ) {
-        if ( !currNode.children ) {
+    while (currNode = nodeQueue.pop()) {
+        if (!currNode.children) {
             leaves.push(currNode)
         } else {
             for (let i = 0; i < currNode.children.length; i++)
@@ -71,26 +73,43 @@ function getLeaves(root) {
  * @return TreeNode列表
  */
 function squarify(sizes, x, y, dx, dy) {
-    let nodeList = JSON.parse(JSON.stringify(sizes)) // 深拷贝
+    let nodeList = sizes.slice(0) // 深拷贝
     // 节点的value归一化
     let totalArea = dx * dy
     nodeList.forEach((node, i) => {
-        node.value /= totalArea
+        node.data.value /= totalArea
     })
     // 逆序排序
     nodeList.sort((node1, node2) => {
-        return node2.value - node1.value
+        return node2.data.value - node1.data.value
     })
 
+    let start = 0
+    let resList = []
+    while (start < nodeList.length) {
+        let i = start + 1
+        while (i < nodeList.length &&
+        worstRatio(nodeList.slice(start, i), x, y, dx, dy) >= worstRatio(nodeList.slice(start, i + 1), x, y, dx, dy)) {
+            i += 1
+        }
+        let currentNodeList = nodeList.slice(start, i)
+        let remainNodeList = nodeList.slice(i)
 
+        let halfRect = layout(currentNodeList, x, y, dx, dy)
+        resList.concat(halfRect)
+
+        [x, y, dx, dy] = leftover(currentNodeList, x, y, dx, dy)
+        start = i
+    }
+    return resList
 }
 
 function worstRatio(nodeList, x, y, dx, dy) {
-    let list = JSON.parse(JSON.stringify(nodeList)) // 深拷贝
+    let list = nodeList.slice(0) // 深拷贝
     list = layout(list, x, y, dx, dy)
     let res = 0
     list.forEach((node, i) => {
-        let temp = Math.max( node.dx / node.dy, node.dy / node.dx );
+        let temp = Math.max(node.dx / node.dy, node.dy / node.dx);
         res = Math.max(res, temp)
     })
     return res
@@ -116,11 +135,11 @@ function layoutRow(nodeList, x, y, dx, dy) {
     let coveredArea = getSumOfNodeValue(nodeList); // 矩形占据当前空间的面积
     let width = coveredArea / dy                   // 上下填满的情况下的宽度
 
-    nodeList.forEach((node , i) => {
+    nodeList.forEach((node, i) => {
         node.x0 = x
-        node.y0 = y + node.value / width
+        node.y0 = y + node.data.value / width
         node.dx = width
-        node.dy = node.value / width
+        node.dy = node.data.value / width
     })
 
     return nodeList
@@ -134,13 +153,34 @@ function layoutCol(nodeList, x, y, dx, dy) {
     let height = coveredArea / dx                  // 左右填满的情况下的高度
 
     nodeList.forEach((node, i) => {
-        node.x0 = x + node.value / height
+        node.x0 = x + node.data.value / height
         node.y0 = y
-        node.dx = node.value / height
+        node.dx = node.data.value / height
         node.dy = height
     })
 
     return nodeList
+}
+
+function leftover(nodeList, x, y, dx, dy) {
+    if ( dx >= dy ) return leftoverRow(nodeList, x, y, dx, dy)
+    else return leftoverCol(nodeList, x, y, dx, dy)
+}
+
+function leftoverRow(nodeList, x, y, dx, dy) {
+    let coveredArea = getSumOfNodeValue(nodeList)
+    let width = coveredArea / dy
+    let leftoverX = x + width, leftoverY = y
+    let leftoverDx = dx - width, leftoverDy = dy
+    return [leftoverX, leftoverY, leftoverDx, leftoverDy]
+}
+
+function leftoverCol(nodeList, x, y, dx, dy) {
+    let coveredArea = getSumOfNodeValue(nodeList)
+    let height = coveredArea / dx
+    let leftoverX = x, leftoverY = y + height
+    let leftoverDx = dx, leftoverDy = dy - height
+    return [leftoverX, leftoverY, leftoverDx, leftoverDy]
 }
 
 d3.json("data/test.json").then(data => {
@@ -148,4 +188,7 @@ d3.json("data/test.json").then(data => {
     console.log(root)
     const leaves = getLeaves(root)
     console.log(leaves)
+
+    const result = squarify(leaves, 0, 0, 500, 500)
+    console.log(result)
 })
