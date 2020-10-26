@@ -1,5 +1,7 @@
-let width = 800
-let height = 600
+let width = 900
+let height = 800
+let strokeWidth = 2
+let maxDepth = 0
 
 let GetChildrenFromData = (data) => {
   if (data.citylist) return data.citylist
@@ -17,9 +19,17 @@ let GetValueFromNode = (node) => {
   return node.children? 0: 1
 }
 
+let Nested = (x, y, dx, dy) => {
+  return [x + strokeWidth, y + strokeWidth, dx - 2 * strokeWidth, dy - 2 * strokeWidth]
+}
+
+let NonNested = (x, y, dx, dy) => {
+  return [x, y, dx, dy]
+}
+
 let color = d3.scaleOrdinal(d3.schemeCategory10)
 
-let canvas = d3.select("div")
+let canvas1 = d3.select("div.nested")
   .append("svg")
   .attr("width", width)
   .attr("height", height)
@@ -30,10 +40,43 @@ d3.json('../data/China.json').then(data => {
   const leaves = root.children//getLeaves(root)
   console.log(leaves)
 
-  const nodes = squarify(leaves, 0, 0, width, height)
+  const nodes = hierarchicalSquarify(root, 0, 0, width, height, maxDepth, Nested)
   console.log(leaves)
 
-  let cells = canvas.selectAll('g')
+  let cells = canvas1.selectAll('g')
+    .data(nodes)
+    .enter()
+    .append('g')
+
+  cells.append('rect')
+    .attr('x', d => { return d.x0 })
+    .attr('y', d => { return d.y0 })
+    .attr('width', d => {return d.dx })
+    .attr('height', d => {return d.dy })
+    .attr('fill', d => { return color(GetNodeName(d))})
+
+  cells.append('text')
+    .attr('x', d => { return d.x0 + d.dx / 2 })
+    .attr('y', d => { return d.y0 + d.dy / 2 })
+    .attr('text-anchor', 'middle')
+    .text(d => { return GetNodeName(d) })
+})
+
+const canvas2 = d3.select("div.non-nested")
+  .append("svg")
+  .attr("width", width)
+  .attr("height", height)
+
+d3.json('../data/China.json').then(data => {
+  const root = treeify(data)
+  console.log(root)
+  const leaves = root.children//getLeaves(root)
+  console.log(leaves)
+
+  const nodes = hierarchicalSquarify(root, 0, 0, width, height, maxDepth, NonNested)
+  console.log(leaves)
+
+  let cells = canvas2.selectAll('g')
     .data(nodes)
     .enter()
     .append('g')
@@ -61,6 +104,29 @@ function TreeNode (data) {
   this.children = null
 }
 
+function hierarchicalSquarify (root, x, y, dx, dy, maxDepth, strokeFunc) {
+  let currNode, nodeQueue = [root]
+  root.x0 = x
+  root.y0 = y
+  root.dx = dx
+  root.dy = dy
+
+  // BFS
+  let res = []
+  while (currNode = nodeQueue.pop()) {
+    if (currNode.children && currNode.depth <= maxDepth) {
+      currNode.children = squarify(currNode.children, currNode.x0, currNode.y0, currNode.dx, currNode.dy, strokeFunc)
+      let n = currNode.children.length
+      for (let i = 0; i < n; i++) {
+        nodeQueue.push(currNode.children[i])
+        res.push(currNode.children[i])
+      }
+    }
+  }
+
+  return res
+}
+
 /**
  * 计算treemap中各个矩形的左上角坐标和长宽
  * @param leaves TreeNode列表
@@ -68,9 +134,10 @@ function TreeNode (data) {
  * @param y 原点坐标
  * @param dx treemap的水平宽度
  * @param dy treemap的垂直高度
+ * @param strokeFunc 矩形边缘函数
  * @return TreeNode列表
  */
-function squarify (leaves, x, y, dx, dy) {
+function squarify (leaves, x, y, dx, dy, strokeFunc) {
   let width = dx, height = dy, ss = sum(leaves, 0, leaves.length)
   let nodes = leaves.slice(0)
   // 归一化
@@ -101,18 +168,10 @@ function squarify (leaves, x, y, dx, dy) {
       for (let j = start; j < end; j++) {
         let d = nodes[j].value / z
         if (isVertical) {
-          nodes[j].x0 = rx
-          nodes[j].y0 = ry
-          nodes[j].dx = z
-          nodes[j].dy = d
-
+          [nodes[j].x0, nodes[j].y0, nodes[j].dx, nodes[j].dy] = strokeFunc(rx, ry, z, d)
           ry = ry + d
         } else {
-          nodes[j].x0 = rx
-          nodes[j].y0 = ry
-          nodes[j].dx = d
-          nodes[j].dy = z
-
+          [nodes[j].x0, nodes[j].y0, nodes[j].dx, nodes[j].dy] = strokeFunc(rx, ry, d, z)
           rx = rx + d
         }
       }
@@ -134,24 +193,16 @@ function squarify (leaves, x, y, dx, dy) {
 
   // 避免数组row中还剩最后一个node
   if (end - start > 0) {
-    let rx = x, ry = y
     let s = sum(nodes, start, end)
+    let rx = x, ry = y
     let z = s / w
     for (let j = start; j < end; j++) {
       let d = nodes[j].value / z
       if (isVertical) {
-        nodes[j].x0 = rx
-        nodes[j].y0 = ry
-        nodes[j].dx = z
-        nodes[j].dy = d
-
+        [nodes[j].x0, nodes[j].y0, nodes[j].dx, nodes[j].dy] = strokeFunc(rx, ry, z, d)
         ry = ry + d
       } else {
-        nodes[j].x0 = rx
-        nodes[j].y0 = ry
-        nodes[j].dx = d
-        nodes[j].dy = z
-
+        [nodes[j].x0, nodes[j].y0, nodes[j].dx, nodes[j].dy] = strokeFunc(rx, ry, d, z)
         rx = rx + d
       }
     }
@@ -225,15 +276,17 @@ function treeify(data) {
   return root
 }
 
-function getLeaves(root) {
+function getLeaves(root, depth) {
   let leaves = []
   let currNode, nodeQueue = [root]
   while (currNode = nodeQueue.pop()) {
-    if (!currNode.children) {
+    if (currNode.depth === depth) {
       leaves.push(currNode)
-    } else {
+    } else if (currNode.depth > depth){
       for (let i = 0; i < currNode.children.length; i++)
         nodeQueue.push(currNode.children[i])
+    } else {
+      return leaves
     }
   }
   return leaves
