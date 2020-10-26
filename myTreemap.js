@@ -1,66 +1,74 @@
-function TreeNode(data) {
-    this.data = data
-    this.depth = 0
-    this.height = 0
-    this.parent = null
-}
+// function TreeNode(data) {
+//     this.data = data
+//     this.depth = 0
+//     this.height = 0
+//     this.parent = null
+// }
 
-function getChildrenFromData(d) {
-    return d.children;
-}
+// function getChildrenFromData(d) {
+//     return d.children;
+// }
+//
+// function getValueFromData(d) {
+//     return d.value
+// }
+//
+// function getSumOfNodeValue(nodeList) {
+//     let n = nodeList.length
+//     let sum = 0
+//     for (let i = 0; i < n; i++) {
+//         sum += nodeList[i].data.value
+//     }
+//     return sum
+// }
+//
+// function treeify(data) {
+//     let root = new TreeNode(data)
+//     let currNode, nodeQueue = [root]
+//
+//     // BFS
+//     while (currNode = nodeQueue.pop()) {
+//         let childList = getChildrenFromData(currNode.data)
+//         if (childList) {
+//             childList = Array.from(childList)
+//             let n = childList.length
+//             let sum = 0
+//             for (let i = 0; i < n; i++) {
+//                 sum += getValueFromData(childList[i])
+//                 childList[i] = new TreeNode(childList[i])
+//                 let currChild = childList[i]
+//                 nodeQueue.push(currChild)
+//                 currChild.parent = currNode
+//                 currChild.depth = currNode.depth + 1
+//             }
+//             currNode.children = childList;
+//             currNode.value = sum
+//         }
+//     }
+//
+//     return root
+// }
 
-function getValueFromData(d) {
-    return d.value
-}
+// function getLeaves(root) {
+//     let leaves = []
+//     let currNode, nodeQueue = [root]
+//     while (currNode = nodeQueue.pop()) {
+//         if (!currNode.children) {
+//             leaves.push(currNode)
+//         } else {
+//             for (let i = 0; i < currNode.children.length; i++)
+//                 nodeQueue.push(currNode.children[i])
+//         }
+//     }
+//     return leaves
+// }
 
-function getSumOfNodeValue(nodeList) {
-    let n = nodeList.length
-    let sum = 0
-    for (let i = 0; i < n; i++) {
-        sum += nodeList[i].data.value
-    }
-    return sum
-}
-
-function treeify(data) {
-    let root = new TreeNode(data)
-    let currNode, nodeQueue = [root]
-
-    // BFS
-    while (currNode = nodeQueue.pop()) {
-        let childList = getChildrenFromData(currNode.data)
-        if (childList) {
-            childList = Array.from(childList)
-            let n = childList.length
-            let sum = 0
-            for (let i = 0; i < n; i++) {
-                sum += getValueFromData(childList[i])
-                childList[i] = new TreeNode(childList[i])
-                let currChild = childList[i]
-                nodeQueue.push(currChild)
-                currChild.parent = currNode
-                currChild.depth = currNode.depth + 1
-            }
-            currNode.children = childList;
-            currNode.value = sum
-        }
-    }
-
-    return root
-}
-
-function getLeaves(root) {
-    let leaves = []
-    let currNode, nodeQueue = [root]
-    while (currNode = nodeQueue.pop()) {
-        if (!currNode.children) {
-            leaves.push(currNode)
-        } else {
-            for (let i = 0; i < currNode.children.length; i++)
-                nodeQueue.push(currNode.children[i])
-        }
-    }
-    return leaves
+function Rect(x, y, dx, dy, value) {
+  this.x0 = x
+  this.y0 = y
+  this.dx = dx
+  this.dy = dy
+  this.value = value
 }
 
 /**
@@ -68,135 +76,131 @@ function getLeaves(root) {
  * @param sizes TreeNode列表，要求列表中的节点是倒序且每个node.value的和等于dx * dy
  * @param x 原点坐标
  * @param y 原点坐标
- * @param dx treemap的长度
- * @param dy treemap的宽度
+ * @param dx treemap的水平宽度
+ * @param dy treemap的垂直高度
  * @return TreeNode列表
  */
-function squarify(sizes, x, y, dx, dy) {
-    let nodeList = sizes.slice(0) // 深拷贝
-    // 节点的value归一化
-    let sum = 0
-    nodeList.forEach((node, i) => {
-        sum += node.data.value
-    })
-    let totalArea = dx * dy
-    nodeList.forEach((node, i) => {
-        node.data.value = node.data.value * totalArea / sum
-    })
-    // 逆序排序
-    nodeList.sort((node1, node2) => {
-        return node2.data.value - node1.data.value
-    })
+function squarify (sizes, x, y, dx, dy) {
+  let children = sizes.slice(0)
+  // 归一化
+  scaleWeights(children, dx, dy)
+  // 逆序排列
+  children.sort((n1, n2) => { return n2 - n1 })
 
-    let start = 0
-    let resList = []
-    while (start < nodeList.length) {
-        let i = start + 1
-        while (i < nodeList.length &&
-        worstRatio(nodeList.slice(start, i), x, y, dx, dy) >= worstRatio(nodeList.slice(start, i + 1), x, y, dx, dy)) {
-            i += 1
+  let res = []
+
+  let isVertical = dx >= dy
+  let w = isVertical ? dy : dx
+  let row = []
+  while (children.length > 0) {
+    let c = children[0]
+    let currValue = c
+    let s = sum(row)
+    let minR = min(row), maxR = max(row)
+    let currWorst = worst(s, minR, maxR, w) // worst(row, w)
+    let concatWorst = worst(s + currValue, Math.min(minR, currValue), Math.max(maxR, currValue), w) // worst(row++[c], w)
+    if (row.length === 0 || currWorst > concatWorst) {
+      row.push(c) // row++[c]
+      children.shift() // tail(children)
+    } else {
+      //layoutrow(row)
+      let rx = x, ry = y
+      let z = s / w
+      for (let j = 0; j < row.length; j++) {
+        let d = row[j] / z
+        if (isVertical) {
+          res.push(new Rect(rx, ry, z, d, row[j]))
+          ry = ry + d
+        } else {
+          res.push(new Rect(rx, ry, d, z, row[j]))
+          rx = rx + d
         }
-        let currentNodeList = nodeList.slice(start, i)
-        let remainNodeList = nodeList.slice(i)
+      }
+      if (isVertical) {
+        x = x + z
+        dx = dx - z
+      } else {
+        y = y + z
+        dy = dy - z
+      }
 
-        let halfRect = layout(currentNodeList, x, y, dx, dy)
-        resList.concat(halfRect)
-
-        [x, y, dx, dy] = leftover(currentNodeList, x, y, dx, dy)
-        start = i
+      // squarify( children, [], width() )
+      isVertical = dx >= dy
+      w = isVertical? dy: dx
+      row = []
     }
-    return resList
+  }
+
+  if (row.length > 0) {
+    let rx = x, ry = y
+    let s = sum(row)
+    let z = s / w
+    for (let j = 0; j < row.length; j++) {
+      let d = row[j] / z
+      if (isVertical) {
+        res.push(new Rect(rx, ry, z, d, row[j]))
+        ry = ry + d
+      } else {
+        res.push(new Rect(rx, ry, d, z, row[j]))
+        rx = rx + d
+      }
+    }
+  }
+  return res
 }
 
-function worstRatio(nodeList, x, y, dx, dy) {
-    let list = nodeList.slice(0) // 深拷贝
-    list = layout(list, x, y, dx, dy)
-    let res = 0
-    list.forEach((node, i) => {
-        let temp = Math.max(node.dx / node.dy, node.dy / node.dx);
-        res = Math.max(res, temp)
-    })
-    return res
+function worst (s, minR, maxR, w) {
+  return Math.max((w * w * maxR) / (s * s), (s * s) / (w * w * minR))
 }
 
-/**
- * 对某一行或列进行布局
- * @param nodeList
- * @param x
- * @param y
- * @param dx
- * @param dy
- */
-function layout(nodeList, x, y, dx, dy) {
-    if (dx >= dy) return layoutRow(nodeList, x, y, dx, dy)
-    else return layoutCol(nodeList, x, y, dx, dy)
+function scaleWeights (sizes, dx, dy) {
+  let scale = dx * dy / sum(sizes)
+  for (let i = 0; i < sizes.length; i++) {
+    sizes[i] = scale * sizes[i]
+  }
 }
 
-/**
- * 按行布局
- */
-function layoutRow(nodeList, x, y, dx, dy) {
-    let coveredArea = getSumOfNodeValue(nodeList); // 矩形占据当前空间的面积
-    let width = coveredArea / dy                   // 上下填满的情况下的宽度
-
-    nodeList.forEach((node, i) => {
-        node.x0 = x
-        node.y0 = y
-        node.dx = width
-        node.dy = node.data.value / width
-
-        y += node.data.value / width
-    })
-
-    return nodeList
+function sum (sizes) {
+  let total = 0
+  for (let i = 0; i < sizes.length; i++) {
+    total += sizes[i]
+  }
+  return total
 }
 
-/**
- * 按列布局
- */
-function layoutCol(nodeList, x, y, dx, dy) {
-    let coveredArea = getSumOfNodeValue(nodeList); // 矩形占据当前空间的面积
-    let height = coveredArea / dx                  // 左右填满的情况下的高度
-
-    nodeList.forEach((node, i) => {
-        node.x0 = x
-        node.y0 = y
-        node.dx = node.data.value / height
-        node.dy = height
-
-        x += node.data.value / height
-    })
-
-    return nodeList
+function min (array) {
+  return Math.min(...array)
 }
 
-function leftover(nodeList, x, y, dx, dy) {
-    if ( dx >= dy ) return leftoverRow(nodeList, x, y, dx, dy)
-    else return leftoverCol(nodeList, x, y, dx, dy)
+function max (array) {
+  return Math.max(...array)
 }
 
-function leftoverRow(nodeList, x, y, dx, dy) {
-    let coveredArea = getSumOfNodeValue(nodeList)
-    let width = coveredArea / dy
-    let leftoverX = x + width, leftoverY = y
-    let leftoverDx = dx - width, leftoverDy = dy
-    return [leftoverX, leftoverY, leftoverDx, leftoverDy]
-}
+d3.json('data/test.json').then(data => {
+  const sizes = [1, 2, 2, 3, 4, 6, 6]
+  const dx = 600, dy = 400
+  const res = squarify(sizes, 0, 0, dx, dy)
+  console.log(res)
+  // const root = treeify(data)
+  // console.log(root)
+  // const leaves = getLeaves(root)
+  // console.log(leaves)
+  //
+  // const result = squarify(leaves, 0, 0, 500, 500)
+  // console.log(result)
 
-function leftoverCol(nodeList, x, y, dx, dy) {
-    let coveredArea = getSumOfNodeValue(nodeList)
-    let height = coveredArea / dx
-    let leftoverX = x, leftoverY = y + height
-    let leftoverDx = dx, leftoverDy = dy - height
-    return [leftoverX, leftoverY, leftoverDx, leftoverDy]
-}
+  let canvas = d3.select("body")
+    .append("svg")
+    .attr("width", dx)
+    .attr("height", dx)
 
-d3.json("data/test.json").then(data => {
-    const root = treeify(data)
-    console.log(root)
-    const leaves = getLeaves(root)
-    console.log(leaves)
+  let cells = canvas.selectAll("g")
+    .data(res)
+    .enter()
+    .append("g")
+    .attr("transform", d => { return "translate(" + d.x0 + "," + d.y0 + ")" })
 
-    const result = squarify(leaves, 0, 0, 500, 500)
-    console.log(result)
+  cells.append("rect")
+    .attr("width", d => { return d.dx - 10 })
+    .attr("height", d => { return d.dy - 10 })
 })
