@@ -1,5 +1,5 @@
-let width = 500
-let height = 500
+let width = 600
+let height = 400
 
 let canvas = d3.select("body")
     .append("svg")
