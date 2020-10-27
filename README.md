@@ -12,10 +12,6 @@
 
 ### step 2: open browser
 
-The bar-chart example in slides: visit http://localhost:8181/array-as-data.html
+Treemap: <http://localhost:8181/treemapImpl/index.html>
 
-Tree example: visit <http://localhost:8181/tree/index.html>
-
-Scatter plot example: visit <http://localhost:8181/scatter/index.html>
-
-Voronoi example: visit <http://localhost:8181/voronoi/index.html>
+Node-link tree: <http://localhost:8181/nodelinkTree/index.html>
