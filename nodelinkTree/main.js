@@ -17,27 +17,31 @@ let dataRoot = {}
 
 d3.json('../data/tree.json').then(data => {
   // 将数据转成一棵树
-  let root = treeify(data)
-  dataRoot = TreeLayout(root, 20, 120)
+  dataRoot = treeify(data)
   update(dataRoot)
 })
 
 function update (root) {
+  root = TreeLayout(root, 20, 120)
   let nodes = listify(root)
+  console.log(nodes)
 
   let node = canvas.selectAll('g.node')
     .data(nodes)
 
   // ****************** 结点 ***************************
+  let nodeExit = node.exit()
+    .remove()
+
   let nodeEnter = node.enter()
     .append('g')
     .attr('class', 'node')
     .attr('transform', d => { return 'translate(' + (50 + d.y) + ',' + (450 + d.x) + ')' })
     .on('click', click)
   nodeEnter.append('circle')
-    .attr('r', 4.5)
+    .attr('r', 10)
     .attr('fill', d => {
-      return d.hiddenChildren ? 'blue' : 'lightsteelblue'
+      return d.children.length === 0 ? 'blue' : 'lightsteelblue'
     })
   nodeEnter.append('text')
     .attr('dy', '0.35em')
@@ -45,36 +49,32 @@ function update (root) {
     .attr('text-anchor', 'start')
     .text(d => {return d.data.name})
 
-  // let nodeUpdate = nodeEnter.merge(node)
-  //   .attr('fill', '#fff')
-  //   .attr('stroke', 'steelblue')
-  //   .attr('stroke-width', '3px;')
-  //   .style('font', '12px sans-serif')
-  // nodeUpdate.transition()
-  //   .duration(750)
-  //   .attr('transform', function (event, i, arr) {
-  //     const d = d3.select(this).datum()
-  //     return 'translate(' + (50 + d.y) + ',' + (450 + d.x) + ')'
-  //   })
-  //
-  // let nodeExit = node.exit()
-  //   .transition()
-  //   .duration(750)
-  //   .attr("transform", function(event, i, arr) {
-  //     const d = d3.select(this).datum();
-  //     return "translate(" + (50 + source.y) + "," + ( 450 + source.x) + ")";
-  //   })
-  //   .remove();
-  // nodeExit.select('circle')
-  //   .attr('r', 1e-6);
-  // nodeExit.select('text')
-  //   .style('fill-opacity', 1e-6)
+  let nodeUpdate = nodeEnter
+    .merge(node)
+    .attr('transform', function (event, i, arr) {
+      const d = d3.select(this).datum()
+      return 'translate(' + (50 + d.y) + ',' + (450 + d.x) + ')'
+    })
+  nodeUpdate.select('circle')
+    .attr('r', 10)
+    .style("fill", function(d) {
+      return d.children.length === 0 ? 'blue' : 'lightsteelblue'
+    })
+  nodeUpdate.select('text')
+    .attr('dy', '0.35em')
+    .attr('dx', '0.5em')
+    .attr('text-anchor', 'start')
+    .text(d => {return d.data.name})
 
   let link = canvas.selectAll('path.node')
     .data(nodes)
 
+  let linkExit = link.exit()
+    .remove()
+
   let linkEnter = link.enter()
     .append('path')
+    .attr('class', 'node')
     .attr('transform', d => { return 'translate(' + 50 + ',' + 450 + ')' })
     .attr('d', d => {
       return d.parent ? diagonal(d.parent, d) : ''
@@ -83,10 +83,25 @@ function update (root) {
     .attr('stroke', '#ccc')
     .attr('stroke-width', '2px')
 
+  let linkUpdate = linkEnter
+    .merge(link)
+    .attr('d', d => {
+      return d.parent ? diagonal(d.parent, d) : ''
+    })
+    .attr('fill', 'none')
+    .attr('stroke', '#ccc')
+    .attr('stroke-width', '2px')
+    .attr('transform', d => { return 'translate(' + 50 + ',' + 450 + ')' })
 }
 
 function click (event, d) {
-  d.hiddenChildren = !d.hiddenChildren
+  if (!d._children) {
+    d._children = d.children
+    d.children = []
+  } else {
+    d.children = d._children
+    d._children = null
+  }
   update(dataRoot)
 }
 
@@ -109,6 +124,13 @@ function InitNodes (root) {
   // BFS
   let currNode, nodeQueue = [root]
   while (currNode = nodeQueue.pop()) {
+    currNode.ancestor = currNode
+    currNode.prelim = 0
+    currNode.mod = 0
+    currNode.change = 0
+    currNode.shift = 0
+    currNode.thread = null
+
     let n = currNode.children.length
     for (let i = 0; i < n; i++) {
       let child = currNode.children[i]
@@ -269,8 +291,6 @@ function TreeNode (data) {
   this.shift = 0
   this.thread = null
   this.number = -1
-
-  this.hiddenChildren = false
 }
 
 function treeify (data) {
@@ -300,12 +320,10 @@ function listify (root) {
   let node, nodeQueue = [root]
   while (node = nodeQueue.pop()) {
     res.push(node)
-    if (!node.hiddenChildren) {
-      let n = node.children.length
-      for (let i = 0; i < n; i++) {
-        let child = node.children[i]
-        nodeQueue.push(child)
-      }
+    let n = node.children.length
+    for (let i = 0; i < n; i++) {
+      let child = node.children[i]
+      nodeQueue.push(child)
     }
   }
   return res
