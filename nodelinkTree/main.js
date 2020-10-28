@@ -13,14 +13,14 @@ let treemap = d3.treemap()
   .paddingInner(10)
 
 d3.json('../data/tree.json').then(data => {
-  var tree = d3.tree()
-    .size([height, width - 160]);
-  var nodes = tree.nodes(data),
-    links = tree.links(nodes);
+  // var tree = d3.tree()
+  //   .size([height, width - 160])
+  // var nodes = tree.nodes(data),
+  //   links = tree.links(nodes)
   // 将数据转成一棵树
   const root = treeify(data)
   console.log(root)
-  const res = CalcNodePositions(root)
+  const res = TreeLayout(root)
   console.log(res)
   // let cells = canvas.selectAll("g")
   //   .data(root.leaves())
@@ -37,44 +37,47 @@ d3.json('../data/tree.json').then(data => {
 const distance = 1
 
 function TreeLayout (root) {
-  // 初始化结点的 x，y 和 mod 值
-  let currNode, nodeQueue = [root]
-  while (currNode = nodeQueue.pop()) {
-    currNode.mod = 0
-    currNode.thread = null
-    currNode.ancestor = currNode
-    currNode.shift = 0
-    currNode.change = 0
-
-    let n = currNode.children.length
-    for (let i = 0; i < n; i++) {
-      nodeQueue.push(currNode.children[i])
-    }
-  }
+  // 初始化结点
+  InitNodes(root)
 
   FirstWalk(root)
   // 根据mod值计算最终的x值
   SecondWalk(root, -root.prelim)
+
   return root
 }
 
-function FirstWalk (node) {
-  if (IsLeaf(node)) {
-    node.prelim = 0
+function InitNodes (root) {
+  // BFS
+  let currNode, nodeQueue = [root]
+  while (currNode = nodeQueue.pop()) {
+    let n = currNode.children.length
+    for (let i = 0; i < n; i++) {
+      let child = currNode.children[i]
+      child.parent = currNode
+      child.number = i
+      nodeQueue.push(child)
+    }
+  }
+}
+
+function FirstWalk (v) {
+  if (IsLeaf(v)) {
+    v.prelim = 0
   } else {
-    let defaultAncestor = GetLeftmostChild(node)
-    node.children.forEach((w, i) => {
+    let defaultAncestor = GetLeftmostChild(v)
+    v.children.forEach((w, i) => {
       FirstWalk(w)
-      Approtion(w, defaultAncestor)
+      defaultAncestor = Apportion(w, defaultAncestor)
     })
-    ExecuteShifts(node)
-    let midpoint = (GetLeftmostChild(node).prelim + GetRightmostChild(node).prelim) / 2
-    let prevSibling = GetPrevSibling(node)
-    if (prevSibling !== null) {
-      node.prelim = prevSibling.prelim + distance
-      node.mod = node.prelim - midpoint
+    ExecuteShifts(v)
+    let midpoint = (GetLeftmostChild(v).prelim + GetRightmostChild(v).prelim) / 2
+    let w = GetPrevSibling(v)
+    if (w !== null) {
+      v.prelim = w.prelim + distance
+      v.mod = v.prelim - midpoint
     } else {
-      node.prelim = midpoint
+      v.prelim = midpoint
     }
   }
 }
@@ -95,56 +98,57 @@ function Apportion (v, defaultAncestor) {
       let shift = (vin.prelim + sin) - (vip.prelim + sip) + distance
       if (shift > 0) {
         MoveSubtree(Ancestor(vin, v, defaultAncestor), v, shift)
-        sip = sip + shift
-        sop = sop + shift
+        sip += shift
+        sop += shift
       }
-      sin = sin + vin.mod
-      sip = sip + vip.mod
-      son = son + von.mod
-      sop = sop + vop.mod
+      sin += vin.mod
+      sip += vip.mod
+      son += von.mod
+      sop += vop.mod
     }
 
     if (NextRight(vin) !== null && NextRight(vop) === null) {
       vop.thread = NextRight(vin)
-      vop.mod = vop.mod + sin - sop
+      vop.mod += sin - sop
     }
 
     if (NextLeft(vip) !== null && NextLeft(von) === null) {
       von.thread = NextLeft(vip)
-      von.mod = von.mod + sip - son
+      von.mod += sip - son
       defaultAncestor = v
     }
   }
+  return defaultAncestor
 }
 
-function NextLeft (node) {
-  if (node.children.length > 0) return node.children[0]
-  else return node.thread
+function NextLeft (v) {
+  if (v.children.length > 0) return v.children[0]
+  else return v.thread
 }
 
-function NextRight (node) {
-  if (node.children.length > 0) return node.children[node.children.length - 1]
-  else return node.thread
+function NextRight (v) {
+  if (v.children.length > 0) return v.children[v.children.length - 1]
+  else return v.thread
 }
 
-function MoveSubtree (wNeg, wPlus, shift) {
-  let subtrees = wPlus.number - wNeg.number
-  wPlus.change = wPlus.change - shift / subtrees
-  wPlus.shift = wPlus.shift + shift
-  wNeg.change = wNeg.change + shift / subtrees
-  wPlus.prelim = wPlus.prelim + shift
-  wPlus.mod = wPlus.mod + shift
+function MoveSubtree (wn, wp, shift) {
+  let subtrees = wp.number - wn.number
+  wp.change -= shift / subtrees
+  wp.shift += shift
+  wn.change += shift / subtrees
+  wp.prelim += shift
+  wp.mod += shift
 }
 
-function ExecuteShifts (node) {
+function ExecuteShifts (v) {
   let shift = 0
   let change = 0
-  for (let i = 0; i < node.children.length; i++) {
-    let w = node.children[i]
-    w.prelim = w.prelim + shift
-    w.mod = w.mod + shift
-    change = change + w.change
-    shift = shift + w.shift + change
+  for (let i = 0; i < v.children.length; i++) {
+    let w = v.children[i]
+    w.prelim += shift
+    w.mod += shift
+    change += w.change
+    shift += w.shift + change
   }
 }
 
@@ -161,17 +165,19 @@ function SecondWalk (v, m) {
   })
 }
 
-function CalcFinalPositions (node, modSum) {
-  node.x += modSum // modSum不包含当前节点的mod值
-  modSum += node.mod
-
-}
-
 function TreeNode (data) {
   this.data = data
   this.depth = 0
   this.parent = null
   this.children = null
+
+  this.ancestor = this
+  this.prelim = 0
+  this.mod = 0
+  this.change = 0
+  this.shift = 0
+  this.thread = null
+  this.number = -1
 }
 
 function treeify (data) {
@@ -211,11 +217,7 @@ function IsRightMost (node) {
 }
 
 function IsSibling (node, sibling) {
-  if (node.parent === null) return false
-  else {
-    let i = node.parent.children.indexOf(sibling)
-    return i !== -1
-  }
+  return node.parent === sibling.parent
 }
 
 function GetPrevSibling (node) {
