@@ -41,7 +41,7 @@ function update (root) {
   nodeEnter.append('circle')
     .attr('r', 10)
     .attr('fill', d => {
-      return d.children.length === 0 ? 'blue' : 'lightsteelblue'
+      return d._children? 'blue' : 'lightsteelblue'
     })
   nodeEnter.append('text')
     .attr('dy', '0.35em')
@@ -58,7 +58,7 @@ function update (root) {
   nodeUpdate.select('circle')
     .attr('r', 10)
     .style("fill", function(d) {
-      return d.children.length === 0 ? 'blue' : 'lightsteelblue'
+      return d._children? 'blue' : 'lightsteelblue'
     })
   nodeUpdate.select('text')
     .attr('dy', '0.35em')
@@ -96,8 +96,10 @@ function update (root) {
 
 function click (event, d) {
   if (!d._children) {
-    d._children = d.children
-    d.children = []
+    if (d.children.length > 0) {
+      d._children = d.children
+      d.children = []
+    }
   } else {
     d.children = d._children
     d._children = null
