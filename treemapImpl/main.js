@@ -1,7 +1,7 @@
-let width = 900
+let width = 1400
 let height = 800
 let strokeWidth = 2
-let maxDepth = 0
+let maxDepth = 1
 
 let GetChildrenFromData = (data) => {
   if (data.citylist) return data.citylist
@@ -16,7 +16,7 @@ let GetNodeName = (node) => {
 }
 
 let GetValueFromNode = (node) => {
-  return node.children? 0: 1
+  return node.children ? 0 : 1
 }
 
 let Nested = (x, y, dx, dy) => {
@@ -27,74 +27,71 @@ let NonNested = (x, y, dx, dy) => {
   return [x, y, dx, dy]
 }
 
-let color = d3.scaleOrdinal(d3.schemeCategory10)
+let changeMaxDepth = (depth) => {
+  maxDepth = depth
+}
 
-let canvas1 = d3.select("div.nested")
-  .append("svg")
-  .attr("width", width)
-  .attr("height", height)
+let strokeFunc = Nested
+let dataRoot = {}
+let color = d3.scaleOrdinal(d3.schemeCategory10)
+let canvas1 = d3.select('div.treemap')
+  .append('svg')
+  .attr('width', width)
+  .attr('height', height)
+
+let changeStrokeFunc = (type) => {
+  if (type === 'nested') strokeFunc = Nested
+  else strokeFunc = NonNested
+  update(dataRoot)
+}
 
 d3.json('../data/China.json').then(data => {
-  const root = treeify(data)
-  console.log(root)
-  const leaves = root.children//getLeaves(root)
-  console.log(leaves)
+  dataRoot = treeify(data)
+  update(dataRoot)
+})
 
-  const nodes = hierarchicalSquarify(root, 0, 0, width, height, maxDepth, Nested)
-  console.log(leaves)
+function update (root) {
+  const leaves = root.children
+  const nodes = hierarchicalSquarify(root, 0, 0, width, height, maxDepth, strokeFunc)
 
   let cells = canvas1.selectAll('g')
     .data(nodes)
-    .enter()
+
+  let cellEnter = cells.enter()
     .append('g')
 
-  cells.append('rect')
+  cellEnter.append('rect')
     .attr('x', d => { return d.x0 })
     .attr('y', d => { return d.y0 })
     .attr('width', d => {return d.dx })
     .attr('height', d => {return d.dy })
     .attr('fill', d => { return color(GetNodeName(d))})
 
-  cells.append('text')
+  cellEnter.append('text')
     .attr('x', d => { return d.x0 + d.dx / 2 })
     .attr('y', d => { return d.y0 + d.dy / 2 })
     .attr('text-anchor', 'middle')
     .text(d => { return GetNodeName(d) })
-})
 
-const canvas2 = d3.select("div.non-nested")
-  .append("svg")
-  .attr("width", width)
-  .attr("height", height)
+  let cellUpdate = cellEnter
+    .merge(cells)
 
-d3.json('../data/China.json').then(data => {
-  const root = treeify(data)
-  console.log(root)
-  const leaves = root.children//getLeaves(root)
-  console.log(leaves)
-
-  const nodes = hierarchicalSquarify(root, 0, 0, width, height, maxDepth, NonNested)
-  console.log(leaves)
-
-  let cells = canvas2.selectAll('g')
-    .data(nodes)
-    .enter()
-    .append('g')
-
-  cells.append('rect')
+  cellUpdate.select('rect')
     .attr('x', d => { return d.x0 })
     .attr('y', d => { return d.y0 })
     .attr('width', d => {return d.dx })
     .attr('height', d => {return d.dy })
     .attr('fill', d => { return color(GetNodeName(d))})
 
-  cells.append('text')
+  cellUpdate.select('text')
     .attr('x', d => { return d.x0 + d.dx / 2 })
     .attr('y', d => { return d.y0 + d.dy / 2 })
     .attr('text-anchor', 'middle')
     .text(d => { return GetNodeName(d) })
-})
 
+  let cellExit = cells.exit()
+    .remove()
+}
 
 function TreeNode (data) {
   this.data = data
@@ -250,7 +247,7 @@ function max (nodes, start, end) {
   return res
 }
 
-function treeify(data) {
+function treeify (data) {
   let root = new TreeNode(data)
   let currNode, nodeQueue = [root]
 
@@ -267,7 +264,7 @@ function treeify(data) {
         currChild.parent = currNode
         currChild.depth = currNode.depth + 1
       }
-      currNode.children = childList;
+      currNode.children = childList
     }
   }
 
@@ -276,13 +273,13 @@ function treeify(data) {
   return root
 }
 
-function getLeaves(root, depth) {
+function getLeaves (root, depth) {
   let leaves = []
   let currNode, nodeQueue = [root]
   while (currNode = nodeQueue.pop()) {
     if (currNode.depth === depth) {
       leaves.push(currNode)
-    } else if (currNode.depth > depth){
+    } else if (currNode.depth > depth) {
       for (let i = 0; i < currNode.children.length; i++)
         nodeQueue.push(currNode.children[i])
     } else {
@@ -292,7 +289,7 @@ function getLeaves(root, depth) {
   return leaves
 }
 
-function initNodeValues(root) {
+function initNodeValues (root) {
   if (!root.children) {
     root.value = GetValueFromNode(root)
     return root.value
