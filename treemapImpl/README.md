@@ -1,7 +1,5 @@
 # Treemap实现
 
-2020214004 雷诚
-
 ## 一、效果展示
 
 ### 1.1 nested treemap
