@@ -1,6 +1,21 @@
-#How to start#
+# 信息可视化与可视分析 项目报告
 
-##step1: run in terminal
+## 一、选题
+1. Node-link Tree
+2. Treemap实现
+
+## 二、文件夹结构
+```
+根目录
+└─data         json数据
+└─lib          D3库
+└─nodelinkTree 实现的Node-link Tree
+└─treemapImpl  实现的Treemap
+```
+
+## 三、运行
+
+###step1: run in terminal
 
 ##### Python 3.x
 
