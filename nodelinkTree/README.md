@@ -259,6 +259,6 @@ let linkEnter = link.enter()
 
 该实现的布局效果与D3在结点位置上的结果较为接近。
 
-![compareresult](C:\Users\leich\Projects\WebStormProjects\dataVisHomework\nodelinkTree\Report\compareresult.png)
+![compareresult](Report/compareresult.png)
 
 但在实现结果中，中间结点和其左右兄弟结点之间的距离比D3结果更近，这使得实现结果不如D3结果美观。
