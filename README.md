@@ -15,7 +15,7 @@
 
 ## 三、运行
 
-###step1: run in terminal
+### step1: run in terminal
 
 ##### Python 3.x
 
